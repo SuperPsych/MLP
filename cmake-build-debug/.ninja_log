@@ -1,0 +1,5 @@
+# ninja log v6
+24	2995	8073426049880659	CMakeFiles/NeuralNet.dir/main.cpp.obj	3ab24529ec2c7efc
+2995	3206	8073426079590347	NeuralNet.exe	46183b6337057f19
+18	738	8073428436895734	CMakeFiles/NeuralNet.dir/data_gen.cpp.obj	a04c4d4f00ef4b18
+12	2363	8073428436835585	CMakeFiles/NeuralNet.dir/main.cpp.obj	3ab24529ec2c7efc
