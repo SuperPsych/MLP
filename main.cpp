@@ -168,8 +168,6 @@ struct Model {
     vector<Transform> transforms;
     vector<double> x_means;
     vector<double> x_stdevs;
-    vector<double> y_means;
-    vector<double> y_stdevs;
     Model(const vector<int>& dims) {
         for (int i=0; i<dims.size()-1; i++) {
             transforms.emplace_back(dims[i], dims[i+1]);
@@ -179,20 +177,21 @@ struct Model {
         Transform::ReLU(x);
     }
     static void output_activation(vector<double> &x) {
-
+        double max = *max_element(x.begin(), x.end());
+        double sum = 0;
+        for(double& i : x){
+            i = exp(i - max);
+            sum += i;
+        }
+        for(double& i : x){
+            i/=sum;
+        }
     }
 
     void normalize(vector<double>& x){
         for(int i=0; i<x.size(); i++){
             x[i] -= x_means[i];
             if(x_stdevs[i] !=0) x[i] /= x_stdevs[i];
-        }
-    }
-
-    void unnormalize(vector<double>& y){
-        for(int i=0; i<y.size(); i++){
-            y[i] *= y_stdevs[i];
-            y[i] += y_means[i];
         }
     }
 
@@ -209,7 +208,6 @@ struct Model {
     vector<double> predict(vector<double> x) {
         normalize(x);
         auto y = infer(x);
-        unnormalize(y);
         return y;
     }
 
@@ -229,7 +227,7 @@ struct Model {
         vector<double> grad(transforms.back().dim_out);
 
         for (int i=0; i<y.size(); i++) {
-            grad[i] = (td.activations.back()[i] - y[i])/y.size();
+            grad[i] = td.activations.back()[i] - y[i];
         }
 
         for (int i=0; i<transforms.size(); i++) {
@@ -276,19 +274,6 @@ struct Model {
                 if(s!=0) samples[j].x[i] /= s;
             }
         }
-        for(int i=0; i<samples[0].y.size(); i++){
-            for(int j=0; j<arr.size(); j++){
-                arr[j] = samples[j].y[i];
-            }
-            double m = mean(arr);
-            double s = stdev(arr);
-            y_means.emplace_back(m);
-            y_stdevs.emplace_back(s);
-            for(int j=0; j<samples.size(); j++){
-                samples[j].y[i] -= m;
-                if(s!=0) samples[j].y[i] /= s;
-            }
-        }
     }
 
     void train(vector<Sample>& samples, int epochs, int batch_size, double lr) {
@@ -322,7 +307,7 @@ struct Model {
                     transforms[t].step(thread_data[0].A_deltas[t], thread_data[0].b_deltas[t], lr / batch_size);
                 }
             }
-            if((epoch+1) % 1 == 0){
+            if((epoch+1) % 10 == 0){
                 cout << "Epoch " << epoch+1 << "/" << epochs << " | Loss: " << loss(samples) << endl;
             }
         }
@@ -331,15 +316,15 @@ struct Model {
     static double loss(const vector<double>& a, const vector<double>& p) {
         double res = 0.0;
         for (int i = 0; i < a.size(); i++) {
-            res += pow(a[i] - p[i],2);
+            res -= a[i] * log(p[i]);
         }
-        return res/(2.0 * a.size());
+        return res;
     }
 
     double loss(const vector<Sample>& samples){
         double res = 0.0;
         for(const Sample& sample : samples){
-            res += loss(infer(sample.x), sample.y)/samples.size();
+            res += loss(sample.y, infer(sample.x))/samples.size();
         }
         return res;
     }
@@ -357,7 +342,7 @@ struct Model {
     }
 
     void eval(vector<Sample>& samples){
-        cout << "Evaluating mode..." << endl;
+        cout << "Evaluating model..." << endl;
         vector<double> y(samples[0].y.size());
         int pred, actual;
         int correct = 0;
@@ -441,9 +426,9 @@ int main() {
 
     auto train_samples = load_samples("./mnist_train.txt", input_dim, output_dim);
 
-    int epochs = 10;
+    int epochs = 50;
     int batch_size = 64;
-    double lr = 0.001;
+    double lr = 0.01;
     model.train(train_samples, epochs, batch_size, lr);
     
     auto test_samples = load_samples("./mnist_test.txt", input_dim, output_dim);
