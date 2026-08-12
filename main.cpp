@@ -344,6 +344,32 @@ struct Model {
         return res;
     }
 
+    int collapse(vector<double>& x){
+        double max = INT_MIN;
+        int res = -1;
+        for(int i=0; i<x.size(); i++){
+            if(x[i] > max){
+                max = x[i];
+                res = i;
+            }
+        }
+        return res;
+    }
+
+    void eval(vector<Sample>& samples){
+        cout << "Evaluating mode..." << endl;
+        vector<double> y(samples[0].y.size());
+        int pred, actual;
+        int correct = 0;
+        for(Sample& sample : samples){
+            y = predict(sample.x);
+            pred = collapse(y);
+            actual = collapse(sample.y);
+            if(pred==actual) correct++;
+        }
+        cout << "Accuracy: " << ((double) correct / samples.size()) << endl;
+    }
+
     static Model initialize(int input_dim, int output_dim, int hidden_dim, int hidden_num) {
         cout << "Initializing model..." << endl;
         vector<int> dims;
@@ -368,16 +394,36 @@ struct Model {
 
 vector<Sample> load_samples(const string& filename, int input_dim, int output_dim){
     cout << "Loading in data..." << endl;
-    ifstream file(filename);
+    ifstream file(filename, ios::binary | ios::ate);
+    streamsize size = file.tellg();
+    file.seekg(0, ios::beg);
+    vector<char> buf(size);
+    file.read(buf.data(), size);
+
     vector<Sample> samples;
+    samples.reserve(count(buf.begin(), buf.end(), '\n') + 1);
+
+    const char* p = buf.data();
+    const char* end = p + size;
+    auto skip_space = [&](){ while(p < end && isspace((unsigned char)*p)) p++; };
+
     while(true){
+        skip_space();
+        if(p >= end) return samples;
+
         vector<double> x(input_dim);
         vector<double> y(output_dim);
         for(int i=0; i<input_dim; i++){
-            if(!(file >> x[i])) return samples;
+            auto res = from_chars(p, end, x[i]);
+            if(res.ec != errc()) return samples;
+            p = res.ptr;
+            skip_space();
         }
         for(int i=0; i<output_dim; i++){
-            if(!(file >> y[i])) return samples;
+            auto res = from_chars(p, end, y[i]);
+            if(res.ec != errc()) return samples;
+            p = res.ptr;
+            skip_space();
         }
         samples.emplace_back(x, y);
     }
@@ -393,10 +439,13 @@ int main() {
 
     auto model = Model::initialize(input_dim, output_dim, hidden_dim, hidden_num);
 
-    auto samples = load_samples("./mnist_train.txt", input_dim, output_dim);
+    auto train_samples = load_samples("./mnist_train.txt", input_dim, output_dim);
 
     int epochs = 10;
     int batch_size = 64;
     double lr = 0.001;
-    model.train(samples, epochs, batch_size, lr);
+    model.train(train_samples, epochs, batch_size, lr);
+    
+    auto test_samples = load_samples("./mnist_test.txt", input_dim, output_dim);
+    model.eval(test_samples);
 }
