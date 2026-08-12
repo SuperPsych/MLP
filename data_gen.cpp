@@ -9,7 +9,7 @@ int main() {
     mt19937 gen(rd());
     uniform_real_distribution<double> dist(-5.0, 5.0);
 
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 100000; i++) {
         double x = dist(gen);
         double y = dist(gen);
         double z = dist(gen);

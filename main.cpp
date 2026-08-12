@@ -185,7 +185,7 @@ struct Model {
     void normalize(vector<double>& x){
         for(int i=0; i<x.size(); i++){
             x[i] -= x_means[i];
-            x[i] /= x_stdevs[i];
+            if(x_stdevs[i] !=0) x[i] /= x_stdevs[i];
         }
     }
 
@@ -273,7 +273,7 @@ struct Model {
             x_stdevs.emplace_back(s);
             for(int j=0; j<samples.size(); j++){
                 samples[j].x[i] -= m;
-                samples[j].x[i] /= s;
+                if(s!=0) samples[j].x[i] /= s;
             }
         }
         for(int i=0; i<samples[0].y.size(); i++){
@@ -286,7 +286,7 @@ struct Model {
             y_stdevs.emplace_back(s);
             for(int j=0; j<samples.size(); j++){
                 samples[j].y[i] -= m;
-                samples[j].y[i] /= s;
+                if(s!=0) samples[j].y[i] /= s;
             }
         }
     }
@@ -322,7 +322,7 @@ struct Model {
                     transforms[t].step(thread_data[0].A_deltas[t], thread_data[0].b_deltas[t], lr / batch_size);
                 }
             }
-            if((epoch+1) % 10 == 0){
+            if((epoch+1) % 1 == 0){
                 cout << "Epoch " << epoch+1 << "/" << epochs << " | Loss: " << loss(samples) << endl;
             }
         }
@@ -386,18 +386,17 @@ vector<Sample> load_samples(const string& filename, int input_dim, int output_di
 
 int main() {
 
-    int input_dim = 4;
-    int output_dim = 1;
-    int hidden_dim = 16;
+    int input_dim = 784;
+    int output_dim = 10;
+    int hidden_dim = 64;
     int hidden_num = 2;
 
     auto model = Model::initialize(input_dim, output_dim, hidden_dim, hidden_num);
 
-    auto samples = load_samples("./data.txt", input_dim, output_dim);
+    auto samples = load_samples("./mnist_train.txt", input_dim, output_dim);
 
-    int epochs = 1000;
+    int epochs = 10;
     int batch_size = 64;
     double lr = 0.001;
     model.train(samples, epochs, batch_size, lr);
-    cout << model.predict({1,1,1,1})[0];
 }
