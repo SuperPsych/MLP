@@ -101,6 +101,15 @@ struct Model {
     }
 
     void normalize(vector<Sample>& samples){
+        for(int i=0; i<samples[0].x.size(); i++){
+            for(int j=0; j<samples.size(); j++){
+                samples[j].x[i] -= x_means[i];
+                if(x_stdevs[i]!=0) samples[j].x[i] /= x_stdevs[i];
+            }
+        }
+    }
+
+    void normalize_init(vector<Sample>& samples){
         vector<double> arr(samples.size());
         for(int i=0; i<samples[0].x.size(); i++){
             for(int j=0; j<arr.size(); j++){
@@ -117,8 +126,8 @@ struct Model {
         }
     }
 
-    void train(vector<Sample>& samples, int epochs, int batch_size, double lr) {
-        normalize(samples);
+    void train(vector<Sample>& train_samples, vector<Sample>& test_samples, int epochs, int batch_size, double lr) {
+        normalize_init(train_samples);
         omp_set_dynamic(0);
         int thread_num = omp_get_max_threads();
         vector<ThreadData> thread_data(thread_num, ThreadData(dims()));
@@ -126,14 +135,14 @@ struct Model {
         cout << "Beginning training..." << endl;
 
         for (int epoch = 0; epoch < epochs; epoch++) {
-            for (int b = 0; b < samples.size()/batch_size; b++) {
+            for (int b = 0; b < train_samples.size()/batch_size; b++) {
                 int start = b * batch_size;
                 for(ThreadData& td : thread_data){
                     td.clear();
                 }
                 #pragma omp parallel for
                 for(int i = 0; i < batch_size; i++){
-                    backprop(samples[start + i], thread_data[omp_get_thread_num()]);
+                    backprop(train_samples[start + i], thread_data[omp_get_thread_num()]);
                 }
 
                 #pragma omp parallel for
@@ -148,8 +157,10 @@ struct Model {
                     transforms[t].step(thread_data[0].A_deltas[t], thread_data[0].b_deltas[t], lr / batch_size);
                 }
             }
-            if((epoch+1) % 1 == 0){
-                cout << "Epoch " << epoch+1 << "/" << epochs << " | Loss: " << loss(samples) << endl;
+            if((epoch+1) % 10 == 0){
+                cout << "Epoch " << epoch+1 << "/" << epochs << 
+                " | Train Loss: " << loss(train_samples) <<
+                " | Accuracy: " << accuracy(test_samples) << endl;
             }
         }
     }
@@ -182,8 +193,7 @@ struct Model {
         return res;
     }
 
-    void eval(vector<Sample>& samples){
-        cout << "Evaluating mode..." << endl;
+    double accuracy(vector<Sample>& samples){
         vector<double> y(samples[0].y.size());
         int pred, actual;
         int correct = 0;
@@ -193,7 +203,12 @@ struct Model {
             actual = collapse(sample.y);
             if(pred==actual) correct++;
         }
-        cout << "Accuracy: " << ((double) correct / samples.size()) << endl;
+        return (double) correct / samples.size();
+    }
+
+    void eval(vector<Sample>& samples){
+        cout << "Evaluating model..." << endl;
+        cout << "Accuracy: " << accuracy(samples) << endl;
     }
 
     static Model initialize(int input_dim, int output_dim, int hidden_dim, int hidden_num) {
