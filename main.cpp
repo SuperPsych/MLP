@@ -13,7 +13,7 @@ int main() {
     auto train_samples = load_samples("./mnist_train.txt", input_dim, output_dim);
     auto test_samples = load_samples("./mnist_test.txt", input_dim, output_dim);
 
-    int epochs = 50;
+    int epochs = 30;
     int batch_size = 32;
     double lr = 0.01;
     model.train(train_samples, test_samples, epochs, batch_size, lr);

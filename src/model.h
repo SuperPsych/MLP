@@ -157,7 +157,7 @@ struct Model {
                     transforms[t].step(thread_data[0].A_deltas[t], thread_data[0].b_deltas[t], lr / batch_size);
                 }
             }
-            if((epoch+1) % 10 == 0){
+            if((epoch+1) % 5 == 0){
                 cout << "Epoch " << epoch+1 << "/" << epochs << 
                 " | Train Loss: " << loss(train_samples) <<
                 " | Accuracy: " << accuracy(test_samples) << endl;
